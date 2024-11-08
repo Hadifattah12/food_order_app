@@ -5,11 +5,19 @@ import { currencyFormatter } from "../Util/formatting";
 import Input from "./UI/Input";
 import Button from "./UI/Button";
 import userProgressContext from "../store/userProgressContext";
+import useHttp from './hook/useHttp.js'
 
+const config = {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    }
+};
 export default function Checkout() {
     const ctxCart = useContext(CartContext);
     const userProgressctx = useContext(userProgressContext);
 
+    const { data, isLoding, error, sendRequest } = useHttp('http://localhost:3000/orders', config);
     const cartTotal = ctxCart.items.reduce((acc, item) => {
         return acc + item.quantity * item.price
     }, 0);
@@ -21,18 +29,27 @@ export default function Checkout() {
         event.preventDefault();
         const fd = new FormData(event.target);
         const customerData = Object.fromEntries(fd.entries());
-        fetch('http://localhost:3000/orders', {
-            method: 'POST',
-            headers: {
-                'content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+        sendRequest(
+            JSON.stringify({
                 order: {
                     items: ctxCart.items,
                     customer: customerData,
                 }
             })
-        });
+        );
+    }
+    if (data && !error) {
+        return (
+            <Modal open={userProgressctx.progress === 'checkout'}
+                onClose={handleClose}
+            >
+                <h2>Success</h2>
+                <p>your order was submitted successfully</p>
+                <p className="modal-actions">
+                    <Button onClick={handleClose}>okay</Button>
+                </p>
+            </Modal>
+        );
     }
     return (
         <Modal open={userProgressctx.progress === 'checkout'} onClose={handleClose}>
@@ -43,9 +60,10 @@ export default function Checkout() {
                 <Input label="E-mail address" type="email" id="email" />
                 <Input label="Street" type="text" id="street" />
                 <div className="control-row">
-                    <input label="Postal code" type="text" id="postal-code" />
-                    <input label="City" type="text" id="City" />
+                    <Input label="Postal code" type="text" id="postal-code" />
+                    <Input label="City" type="text" id="city" />
                 </div>
+                {error && <Error title="Faied to submit order" message={error} />}
                 <p className="modal-actions">
                     <Button type="button" textonly onClick={handleClose} >Close</Button>
                     <Button>Submit order</Button>
